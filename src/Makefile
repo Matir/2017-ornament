@@ -5,7 +5,7 @@ PORT	     = /dev/ttyUSB0
 BAUD       = 19200
 FILENAME   = main
 CC         = avr-gcc
-CFLAGS     = -Wall -Wno-main -Os -DF_CPU=$(CLOCK) -mmcu=$(DEVICE) -g
+CFLAGS     = -Wall -Wno-main -O2 -DF_CPU=$(CLOCK) -mmcu=$(DEVICE) -g
 SIMAVR		 = /home/david/tmp/simavr/simavr/run_avr
 
 OBJS = main.o

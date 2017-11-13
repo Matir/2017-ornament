@@ -2,4 +2,5 @@
 _*
 *.zip
 pcb/output/
+prototype/output/
 *-bak

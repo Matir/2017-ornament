@@ -1,5 +1,6 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <avr/power.h>
 #include "avr_mcu_section.h"
 
 // Settings
@@ -7,7 +8,11 @@
 #define NUM_LEDS 6
 #define PWM_FRAME_MASK 0x7f
 #define MAX_BRIGHTNESS_MASK PWM_FRAME_MASK
-#define TIMER_INTERVAL F_CPU/(DESIRED_FRAMERATE*(PWM_FRAME_MASK+1))
+#define TIMER_PRESCALER 8
+#define TIMER_INTERVAL (F_CPU/(DESIRED_FRAMERATE*(PWM_FRAME_MASK+1))/TIMER_PRESCALER)
+#if (TIMER_INTERVAL > 255)
+# error "Unable to use 8-bit timer!"
+#endif
 
 // Brightness divisors
 const uint8_t MAX_BRIGHTNESS_SCALE[NUM_LEDS] = {0, 0, 0, 0, 0, 0};
@@ -51,7 +56,16 @@ void setup(void) {
   OCR0A = TIMER_INTERVAL;   // Interval
   TIMSK = 0x01;             // Interrupt on compare
   TCCR0A = 0x02;            // CTC Mode
-  TCCR0B = 0x01;            // No prescaler
+#if TIMER_PRESCALER == 1
+  TCCR0B = 1<<CS00;         // No prescaler
+#elif TIMER_PRESCALER == 8
+  TCCR0B = 1<<CS01;         // Prescale by 8
+#else
+# error "Unknown prescaler."
+#endif
+
+  // Reduce power consumption slightly
+  PRR |= (1<<PRTIM1) | (1<<PRUSI) | (1<<PRUSART);
 
   // Re-enable interrupts
   sei();

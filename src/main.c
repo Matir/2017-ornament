@@ -27,6 +27,9 @@ uint8_t brightness[NUM_LEDS]     = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 // Current frame
 uint16_t px_frame_no[NUM_LEDS]   = {0};
 
+// Limit to 3 active LEDs at any given time
+uint8_t active_leds = 0b010101;
+
 // Update frame
 volatile uint8_t update_frame = 1;
 #ifdef DEBUG
@@ -38,7 +41,8 @@ volatile uint8_t running_brightness = 0;
 void setup(void);
 void update_loop_step();
 void pwm_frame_update(uint8_t frame_no);
-void calc_brightness(uint8_t which);
+uint8_t calc_brightness(uint8_t which);
+void update_active_leds(uint8_t off);
 
 // Handle the Timer compare
 ISR(TIMER0_COMPA_vect) {
@@ -92,18 +96,25 @@ void update_loop_step() {
   static uint8_t pwm_frame = 0;
   pwm_frame &= PWM_FRAME_MASK;
   if (!pwm_frame) {
-    for(uint8_t i=0; i<NUM_LEDS; i++)
-      calc_brightness(i);
+    for(uint8_t i=0; i<NUM_LEDS; i++) {
+      if (active_leds & (1 << i)) {
+        if (calc_brightness(i)) {
+          update_active_leds(i);
+        }
+      }
+    }
   }
   pwm_frame_update(pwm_frame++);
 }
 
-void calc_brightness(uint8_t which) {
+uint8_t calc_brightness(uint8_t which) {
+  // Returns 1 on overflow (cycle around), 0 otherwise
 #ifdef DEBUG
   running_brightness = 1;
 #endif
   uint8_t brightness_tmp;
   uint16_t cur_frame = px_frame_no[which];
+  uint16_t init_frame = cur_frame;
 
   // Ramp up phase
   if (cur_frame < 0x3FFF) {
@@ -112,30 +123,38 @@ void calc_brightness(uint8_t which) {
     cur_frame += RAMP_UP_SPEED[which];
     brightness_tmp >>= MAX_BRIGHTNESS_SCALE[which];
     brightness[which] = (uint8_t)(brightness_tmp & MAX_BRIGHTNESS_MASK);
-  } else {
-    if (cur_frame < 0x7FFF) {
-      if (!RAMP_DOWN_SPEED[which]) {
-        cur_frame = 0x8000;
-      } else {
-        brightness_tmp = ~(cur_frame >> 8);
-        cur_frame += RAMP_DOWN_SPEED[which];
-        brightness_tmp >>= MAX_BRIGHTNESS_SCALE[which];
-        brightness[which] = (uint8_t)(brightness_tmp & MAX_BRIGHTNESS_MASK);
-      }
+  } else if (cur_frame < 0x7FFF) {
+    if (!RAMP_DOWN_SPEED[which]) {
+      cur_frame = 0x8000;
     } else {
-      // Waiting INTERVAL
-      if (!OFF_SPEED[which]) {
-        cur_frame = 0;
-      } else {
-        brightness[which] = 0;
-        cur_frame += ((uint16_t)OFF_SPEED[which]) << 1;
-      }
+      brightness_tmp = ~(cur_frame >> 8);
+      cur_frame += RAMP_DOWN_SPEED[which];
+      brightness_tmp >>= MAX_BRIGHTNESS_SCALE[which];
+      brightness[which] = (uint8_t)(brightness_tmp & MAX_BRIGHTNESS_MASK);
+    }
+  } else {
+    // Waiting INTERVAL
+    if (!OFF_SPEED[which]) {
+      cur_frame = 0;
+    } else {
+      brightness[which] = 0;
+      cur_frame += ((uint16_t)OFF_SPEED[which]) << 1;
     }
   }
   px_frame_no[which] = cur_frame;
 #ifdef DEBUG
   running_brightness = 0;
 #endif
+  return (cur_frame < init_frame) ? 1 : 0;
+}
+
+void update_active_leds(uint8_t off) {
+  static uint8_t next = 1;
+  while(active_leds & (1 << next)) {
+    next = (next == 5) ? 0 : next + 1;
+  }
+  active_leds |= (1 << next);
+  active_leds &= ~(1 << off);
 }
 
 __attribute__((optimize("unroll-loops")))

@@ -1,7 +1,7 @@
 import math
 import sys
 
-gamma = 2.5;
+gamma = 2.5
 
 template = '''
 #include <stdint.h>
@@ -12,10 +12,15 @@ const uint8_t gamma_table[] PROGMEM = {%(gamma_table)s};
 '''
 
 nsteps = int(sys.argv[1])
-outfile = sys.argv[2]
+if sys.argv[2].startswith('0x'):
+    maxval = int(sys.argv[2], 16)
+else:
+    maxval = int(sys.argv[2])
+outfile = sys.argv[3]
 
 # Gamma adjustment table per Adafruit
-gamma_vals = [int(math.pow(i/256.0, gamma) * 256.0 + 0.5) for i in xrange(256)]
+gamma_vals = [int(math.pow(i/float(nsteps), gamma) * float(maxval) + 0.75)
+              for i in range(nsteps)]
 
 # Render them
 templ = {}

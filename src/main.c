@@ -8,7 +8,7 @@
 // Settings
 #define DESIRED_FRAMERATE 60
 #define NUM_LEDS 6
-#define PWM_FRAME_MASK 0x7f
+#define PWM_FRAME_MASK PWM_RESOLUTION_STEPS
 #define TIMER_PRESCALER 8
 #define TIMER_INTERVAL (F_CPU/(DESIRED_FRAMERATE*(PWM_FRAME_MASK+1))/TIMER_PRESCALER)
 #if (TIMER_INTERVAL > 255)
@@ -20,12 +20,12 @@ extern const uint8_t consts_num_steps;
 extern const uint8_t gamma_table[];
 
 // Brightness divisors
-const uint8_t MAX_BRIGHTNESS_SCALE[NUM_LEDS] = {0, 0, 0, 0, 0, 0};
+const uint8_t MAX_BRIGHTNESS_SCALE[NUM_LEDS] = {1, 1, 1, 1, 1, 1};
 // Scaling factors
-const uint8_t RAMP_UP_SPEED[NUM_LEDS] =   {0x7F, 0x4F, 0x3F, 0x1F, 0x04, 0x12};
+const uint8_t RAMP_UP_SPEED[NUM_LEDS] =   {0x2F, 0x4F, 0x3F, 0x1F, 0x04, 0x12};
 const uint8_t RAMP_DOWN_SPEED[NUM_LEDS] = {0x20, 0x40, 0x10, 0x20, 0x30, 0x40};
 // INTERVAL is 2x as long as ramp up/down time
-const uint8_t OFF_SPEED[NUM_LEDS] =       {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+const uint8_t OFF_SPEED[NUM_LEDS] =       {0x40, 0x00, 0x20, 0x00, 0x40, 0x00};
 
 // Current brightness
 uint8_t brightness[NUM_LEDS]     = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -123,15 +123,15 @@ uint8_t calc_brightness(uint8_t which) {
   uint16_t init_frame = cur_frame;
 
   // Ramp up phase
-  if (cur_frame < 0x3FFF) {
-    // Scales to [0-127]
-    brightness_tmp = (cur_frame >> 7) + 1;
+  if (cur_frame <= 0x3FFF) {
+    // Scales to [0-255]
+    brightness_tmp = (uint8_t)(cur_frame >> 6);
     cur_frame += RAMP_UP_SPEED[which];
-  } else if (cur_frame < 0x7FFF) {
+  } else if (cur_frame <= 0x7FFF) {
     if (!RAMP_DOWN_SPEED[which]) {
       cur_frame = 0x8000;
     } else {
-      brightness_tmp = ~(cur_frame >> 8);
+      brightness_tmp = 255 - (uint8_t)(cur_frame >> 6);
       cur_frame += RAMP_DOWN_SPEED[which];
     }
   } else {
@@ -174,8 +174,6 @@ void pwm_frame_update(uint8_t frame_no) {
     if(bright > frame_no)
       out |= (1<<i);
   }
-  if ((frame_no) > 20)
-    out = 0;
   PORTD = out;
 }
 

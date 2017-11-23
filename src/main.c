@@ -173,6 +173,8 @@ void pwm_frame_update(uint8_t frame_no) {
     bright = pgm_read_byte(&(gamma_table[brightness[i]]));
     if(bright > frame_no)
       out |= (1<<i);
+    // Stagger the pwm cycles
+    frame_no = (frame_no + PWM_FRAME_MASK/3) & PWM_FRAME_MASK;
   }
   PORTD = out;
 }
@@ -180,7 +182,7 @@ void pwm_frame_update(uint8_t frame_no) {
 // simavr stuff
 AVR_MCU_VCD_FILE("gtkwave_trace.vcd", 300000);
 const struct avr_mmcu_vcd_trace_t _mytrace[]  _MMCU_ = {
-  {AVR_MCU_VCD_SYMBOL("update_frame"), .what = &update_frame},
+  {AVR_MCU_VCD_SYMBOL("update_frame"), .what = (uint8_t *)(&update_frame)},
 #ifdef DEBUG
   {AVR_MCU_VCD_SYMBOL("frame_id"), .what = &frame_id},
   {AVR_MCU_VCD_SYMBOL("running_bright"), .what = &running_brightness},

@@ -20,7 +20,7 @@ extern const uint8_t consts_num_steps;
 extern const uint8_t gamma_table[];
 
 // Brightness divisors
-const uint8_t MAX_BRIGHTNESS_SCALE[NUM_LEDS] = {1, 1, 1, 1, 1, 1};
+const uint8_t MAX_BRIGHTNESS_SCALE[NUM_LEDS] = {0, 0, 0, 0, 0, 0};
 // Scaling factors
 const uint8_t RAMP_UP_SPEED[NUM_LEDS] =   {0x2F, 0x4F, 0x3F, 0x1F, 0x04, 0x12};
 const uint8_t RAMP_DOWN_SPEED[NUM_LEDS] = {0x20, 0x40, 0x10, 0x20, 0x30, 0x40};
